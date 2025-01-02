@@ -1,5 +1,7 @@
+from typing import Optional
+
 from fastapi import Depends, HTTPException, APIRouter
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session,joinedload
 from starlette import status
 
 from app import schemas, models, oauth2
@@ -10,23 +12,35 @@ router = APIRouter(tags=['posts'])
 
 
 @router.get("/posts")
+def get_posts(db: Session = Depends(get_db), current_user: int = Depends(oauth2.get_current_user),Limit: int = 10,skip: int = 0,search:Optional[str] = ""):
+    # cursor.execute('''SELECT * FROM posts ''')
+    # posts=cursor.fetchall()
+    posts = db.query(models.Post).options(joinedload(models.Post.owner)).filter(models.Post.title.contains(search)).limit(Limit).offset(skip).all()
+
+    print(posts)
+
+    return posts
+
+
+@router.get("/my_posts")
 def get_posts(db: Session = Depends(get_db), current_user: int = Depends(oauth2.get_current_user)):
     # cursor.execute('''SELECT * FROM posts ''')
     # posts=cursor.fetchall()
-    posts = db.query(models.Post).all()
+    posts = db.query(models.Post).filter(models.Post.owner_id == current_user.id).all()
     print(posts)
 
     return posts
 
 
 @router.post('/posts', status_code=status.HTTP_201_CREATED, response_model=schemas.Post)
-def create_posts(new_post: schemas.PostCreate, db: Session = Depends(get_db),current_user: int = Depends(oauth2.get_current_user)):
+def create_posts(new_post: schemas.PostCreate, db: Session = Depends(get_db),
+                 current_user: int = Depends(oauth2.get_current_user)):
     # cursor.execute("""INSERT INTO posts (title,content,published) VALUES (%s,%s,%s) RETURNING * """, (new_post.title,new_post.content,new_post.published))
     # new_post=cursor.fetchone()
     # conn.commit()
     print(current_user.email)
 
-    new_post = models.Post(**new_post.dict())
+    new_post = models.Post(owner_id=current_user.id, **new_post.dict())
 
     db.add(new_post)
     db.commit()
@@ -44,7 +58,7 @@ def create_posts(new_post: schemas.PostCreate, db: Session = Depends(get_db),cur
 
 
 @router.get('/posts/{id}')
-def get_post(id: int, db: Session = Depends(get_db)):
+def get_post(id: int, db: Session = Depends(get_db), current_user: int = Depends(oauth2.get_current_user)):
     print(id)
     # cursor.execute("""SELECT * FROM posts WHERE ID = (%s)""",(str(id),))
     # particular_post= cursor.fetchone()
@@ -59,39 +73,66 @@ def get_post(id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/posts/{id}")
-def delete_post(id, db: Session = Depends(get_db),user_id: int = Depends(oauth2.get_current_user)):
-    # cursor.execute('''DELETE FROM posts where id = %s RETURNING *''',(str(id),))
-    # deleted_post=cursor.fetchone()
-    # conn.commit()
+def delete_post(id: int, db: Session = Depends(get_db), user_id: int = Depends(oauth2.get_current_user)):
+    # Fetch the specific post instance
+    post = db.query(models.Post).filter(models.Post.id == id).first()
 
-    post = db.query(models.Post).filter(models.Post.id == id)
+    # Check if the post exists
+    if not post:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Post with id {id} not found"
+        )
 
-    if not post.first():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'invalid post,post not found')
-    post.delete(synchronize_session=False)
+    # Check if the current user is authorized to delete this post
+    if post.owner_id != user_id.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to delete this post"
+        )
+
+    # Delete the post
+    db.delete(post)
     db.commit()
-    return {"message": "post deleted successfully"}
+
+    return {"message": "Post deleted successfully"}
 
 
 @router.put('/posts/{id:int}')
-def update_post(id: int, post: schemas.PostUpdate, db: Session = Depends(get_db),user_id: int = Depends(oauth2.get_current_user)
+def update_post(id: int, post: schemas.PostUpdate, db: Session = Depends(get_db),
+                user_id: int = Depends(oauth2.get_current_user)
 
-):
-# index=find_index_posts(id)
-# if index is None:
-#     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail=f'invalid post,post not found')
-# post_dict=post.model_dump()
-# post_dict['id']=id
-# my_posts[index]=post_dict
-# cursor.execute('''UPDATE posts SET title=%s,content=%s,published=%s WHERE id=%s RETURNING *''',(post.title,post.content,post.published,(str(id),)))
-# updated_post=cursor.fetchone()
-# conn.commit()
+                ):
+    # index=find_index_posts(id)
+    # if index is None:
+    #     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail=f'invalid post,post not found')
+    # post_dict=post.model_dump()
+    # post_dict['id']=id
+    # my_posts[index]=post_dict
+    # cursor.execute('''UPDATE posts SET title=%s,content=%s,published=%s WHERE id=%s RETURNING *''',(post.title,post.content,post.published,(str(id),)))
+    # updated_post=cursor.fetchone()
+    # conn.commit()
+    # Fetch the post from the database
     post_query = db.query(models.Post).filter(models.Post.id == id)
     first_post = post_query.first()
 
-    if post is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'invalid post,post not found')
+    # Check if the post exists
+    if first_post is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid post, post not found"
+        )
+
+    # Check if the current user is authorized to update this post
+    if first_post.owner_id != user_id.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized"
+        )
+
+    # Update the post with data from the Pydantic model
     post_query.update(post.dict(), synchronize_session=False)
     db.commit()
 
-    return {'data': post_query.first()}
+    # Return the updated post
+    return {"data": post_query.first()}

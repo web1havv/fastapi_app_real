@@ -4,10 +4,14 @@ from typing import Optional
 from pydantic import BaseModel, EmailStr
 
 
+
 class PostBase(BaseModel):
     title: str
     content: str
     published: bool = True
+
+
+
 
 
 class PostCreate(PostBase):
@@ -17,14 +21,23 @@ class PostCreate(PostBase):
 class PostUpdate(PostBase):
     pass
 
+class UserOut(BaseModel):
+    id: int
+    email: EmailStr
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
 
 class Post(BaseModel):
     title: str
     content: str
     published: bool
+    owner_id:int
+    owner: UserOut
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class UserCreate(BaseModel):
@@ -32,10 +45,7 @@ class UserCreate(BaseModel):
     password: str
 
 
-class UserOut(BaseModel):
-    id: int
-    email: EmailStr
-    created_at: datetime
+
 
 
 class UserLogin(BaseModel):
