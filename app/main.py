@@ -3,6 +3,7 @@ import time
 import psycopg2
 from fastapi import FastAPI, Depends
 from psycopg2.extras import RealDictCursor  # type: ignore
+from pydantic.v1 import BaseSettings
 from sqlalchemy.orm import Session
 
 from . import models
@@ -24,7 +25,13 @@ my_posts = [{"title": "Post 1", "body": "This is post 1 content", 'id': 1},
 
 
 
-
+class Settings(BaseSettings):
+    database_password="vaibhav"
+    database_username="postgres"
+    database_port=5432
+    secret_key= "ahsgjhsADHBAJDBSljkbmfbajksabfjbfjafsbjsafbjkasfbajksfbsajfbasjkfbsakjfbsakjfbsajkfbasj"
+settings = Settings()
+print(settings.database_password)
 app = FastAPI()
 
 app.include_router(posts.router)
