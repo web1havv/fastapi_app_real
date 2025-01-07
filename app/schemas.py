@@ -1,8 +1,6 @@
 from datetime import datetime
 from typing import Optional
-
-from pydantic import BaseModel, EmailStr,conint
-
+from pydantic import BaseModel, EmailStr, conint, constr
 
 
 class PostBase(BaseModel):
@@ -11,30 +9,36 @@ class PostBase(BaseModel):
     published: bool = True
 
 
-
-
-
 class PostCreate(PostBase):
     pass
 
 
 class PostUpdate(PostBase):
-    pass
+    title: Optional[str] = None
+    content: Optional[str] = None
+    published: Optional[bool] = None
+
 
 class UserOut(BaseModel):
     id: int
     email: EmailStr
     created_at: datetime
+
     class Config:
         from_attributes = True
 
 
-class Post(BaseModel):
-    title: str
-    content: str
-    published: bool
-    owner_id:int
+class Post(PostBase):
+    owner_id: int
     owner: UserOut
+
+    class Config:
+        from_attributes = True
+
+
+class PostOut(BaseModel):
+    post: Post  # Use lowercase 'post' for consistency
+    votes: int
 
     class Config:
         from_attributes = True
@@ -42,10 +46,7 @@ class Post(BaseModel):
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str
-
-
-
+    password: str  # Enforce minimum password length
 
 
 class UserLogin(BaseModel):
@@ -59,7 +60,9 @@ class Token(BaseModel):
 
 
 class TokenData(BaseModel):
-    id: int | None = None
+    id: Optional[int] = None
+
+
 class Vote(BaseModel):
     post_id: int
-    dir:conint(le=1)
+    dir: conint(le=1)
