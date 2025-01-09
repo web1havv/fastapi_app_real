@@ -11,22 +11,25 @@ from . import schemas, database, models
 from .database import get_db
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+access_token_expire_minutes = 30
+algorithm = "HS256"
+secret_key="sadkjkasdfjalksdfjlisadjliasjfliasjhfiasfjksalfhjjsafgadhjfg"
 
 
 def create_access_token(data: dict):
     to_encode = data.copy()
     # Use the expiration time from settings
-    expire = datetime.now() + timedelta(minutes=settings.access_token_expire_minutes)
+    expire = datetime.now() + timedelta(minutes=access_token_expire_minutes)
     to_encode.update({"exp": expire})
     # Use the secret key and algorithm from settings
-    encode_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
+    encode_jwt = jwt.encode(to_encode, secret_key, algorithm=algorithm)
     return encode_jwt
 
 
 def verify_access_token(token: str, credentials_exception):
     try:
         # Use the secret key and algorithm from settings
-        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         id: str = payload.get("user_id")
         if id is None:
             raise credentials_exception

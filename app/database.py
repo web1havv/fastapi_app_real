@@ -6,12 +6,8 @@ from psycopg2.extras import RealDictCursor
 import time
 from .config import settings
 
-SQLALCHEMY_DATABASE_URL = (
-    f"postgresql://{settings.database_username}:"
-    f"{settings.database_password}@"
-    f"{settings.database_hostname}:"
-    f"{settings.database_port}/"
-    f"{settings.database_name}"
+SQLALCHEMY_DATABASE_URL = ("postgresql://postgres:vaibhav@localhost:5432/fastapi"
+
 )
 
 
