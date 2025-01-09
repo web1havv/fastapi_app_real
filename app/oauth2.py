@@ -5,7 +5,7 @@ from fastapi import Depends, status, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from sqlalchemy.orm import Session
-from .config import settings
+# from .config import settings
 
 from . import schemas, database, models
 from .database import get_db
